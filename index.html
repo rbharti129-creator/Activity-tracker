@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>My Activity Tracker</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#21262d; --line:#30363d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950;
+  --fixed:#8957e5; --free:#f0f3f6; --danger:#f85149;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:620px;margin:auto;padding:18px 14px 90px}
+h1{font-size:25px;margin:8px 0 3px}
+.subtitle{color:var(--muted);margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;margin:12px 0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+button,input,select{font:inherit}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;padding:9px 12px;cursor:pointer}
+button.primary{background:var(--green);color:#08110a;border-color:var(--green);font-weight:700}
+.dateRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dateTitle{text-align:center;font-weight:700}
+.clockWrap{display:flex;justify-content:center;padding:12px 0 4px}
+canvas{width:min(82vw,330px);height:min(82vw,330px);max-width:330px;max-height:330px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px;justify-content:center}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.dot.sleep{background:#8957e5}.dot.gym{background:#58a6ff}.dot.break{background:#3fb950}.dot.free{background:#f0f3f6}
+.item{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:12px 0}
+.item:first-child{border-top:0}
+.name{font-weight:650}.time{color:var(--muted);font-size:13px;margin-top:2px}
+.badge{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted)}
+.fixed{color:#d8b4fe}.freeText{color:#f0f3f6}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.form label{font-size:12px;color:var(--muted)}
+.form input,.form select{width:100%;margin-top:4px;padding:9px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px}
+.form .full{grid-column:1/-1}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px;text-align:center}
+.stat b{display:block;font-size:18px}.stat span{color:var(--muted);font-size:11px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.calHead{text-align:center;color:var(--muted);font-size:11px;padding-bottom:3px}
+.day{min-height:42px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px;font-size:12px}
+.day.today{outline:2px solid var(--accent)} .day.has{background:#17251b}
+.small{font-size:11px;color:var(--green);margin-top:3px}
+.note{color:var(--muted);font-size:12px;line-height:1.5}
+footer{position:fixed;bottom:0;left:0;right:0;background:rgba(13,17,23,.95);border-top:1px solid var(--line);padding:10px calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right));display:flex;justify-content:center;gap:8px;z-index:5}
+.hidden{display:none}
+@media(max-width:420px){.app{padding-left:10px;padding-right:10px}.stats{grid-template-columns:1fr 1fr}.stats .stat:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div>
+      <h1>My personal daily activity tracker</h1>
+      <div class="subtitle">24-hour view + daily records</div>
+    </div>
+    <button id="todayBtn">Today</button>
+  </div>
+
+  <section class="card">
+    <div class="dateRow">
+      <button onclick="moveDay(-1)">‹</button>
+      <div class="dateTitle" id="dateTitle"></div>
+      <button onclick="moveDay(1)">›</button>
+    </div>
+    <div class="clockWrap"><canvas id="clock" width="660" height="660"></canvas></div>
+    <div class="legend">
+      <span><i class="dot sleep"></i>Sleep 1–9</span>
+      <span><i class="dot gym"></i>Gym 10–12</span>
+      <span><i class="dot break"></i>Break 18–20</span>
+      <span><i class="dot free"></i>Free</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="top"><h2 style="margin:0;font-size:18px">Today's timeline</h2><span class="badge">Fixed blocks locked</span></div>
+    <div id="timeline"></div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0 0 12px;font-size:18px">Add activity</h2>
+    <div class="form">
+      <label class="full">Activity name
+        <input id="activityName" placeholder="e.g. Work, Study, Reading">
+      </label>
+      <label>Start
+        <input id="startTime" type="time">
+      </label>
+      <label>End
+        <input id="endTime" type="time">
+      </label>
+      <button class="primary full" onclick="addActivity()">＋ Add to this day</button>
+    </div>
+    <p class="note">Your fixed Sleep, Gym and Break blocks cannot be edited. Added activities are saved on this device.</p>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0 0 12px;font-size:18px">Daily summary</h2>
+    <div class="stats">
+      <div class="stat"><b id="fixedHours">12h</b><span>fixed</span></div>
+      <div class="stat"><b id="addedHours">0h</b><span>added</span></div>
+      <div class="stat"><b id="freeHours">12h</b><span>free</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0 0 12px;font-size:18px">Calendar</h2>
+    <div class="dateRow" style="margin-bottom:10px">
+      <button onclick="moveMonth(-1)">‹</button>
+      <strong id="monthTitle"></strong>
+      <button onclick="moveMonth(1)">›</button>
+    </div>
+    <div class="calendar" id="calendar"></div>
+  </section>
+</div>
+
+<footer>
+  <button onclick="scrollToTop()">Today</button>
+  <button onclick="document.querySelector('.card:nth-of-type(5)').scrollIntoView({behavior:'smooth'})">Calendar</button>
+</footer>
+
+<script>
+const fixedBlocks=[
+  {name:'Sleep',start:1,end:9,cls:'sleep',icon:'💤'},
+  {name:'Gym',start:10,end:12,cls:'gym',icon:'🏋️'},
+  {name:'Break',start:18,end:20,cls:'break',icon:'☕'}
+];
+let selectedDate=new Date(); selectedDate.setHours(0,0,0,0);
+let calendarMonth=new Date(selectedDate); calendarMonth.setDate(1);
+
+function key(d){return d.toISOString().slice(0,10)}
+function load(){return JSON.parse(localStorage.getItem('activityTracker')||'{}')}
+function save(x){localStorage.setItem('activityTracker',JSON.stringify(x))}
+function fmtHour(h){return (h%24).toString().padStart(2,'0')+':00'}
+function dateLabel(d){return d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+
+function userActivities(){
+  const data=load(); return data[key(selectedDate)]||[];
+}
+function overlaps(a,b){
+  return a.start < b.end && b.start < a.end;
+}
+function addActivity(){
+  const name=document.getElementById('activityName').value.trim();
+  const s=document.getElementById('startTime').value, e=document.getElementById('endTime').value;
+  if(!name||!s||!e){alert('Enter an activity, start time and end time.');return}
+  const start=+s.slice(0,2)+ +s.slice(3)/60, end=+e.slice(0,2)+ +e.slice(3)/60;
+  if(end<=start){alert('For this first version, an activity must start and end on the same day.');return}
+  const block={start,end};
+  if(fixedBlocks.some(x=>overlaps(block,x))){alert('That time overlaps a fixed block. Sleep, Gym and Break are locked.');return}
+  const acts=userActivities();
+  if(acts.some(x=>overlaps(block,x))){alert('That time overlaps an activity already recorded for this day.');return}
+  const data=load(); if(!data[key(selectedDate)]) data[key(selectedDate)]=[];
+  data[key(selectedDate)].push({name,start,end});
+  save(data);
+  document.getElementById('activityName').value=''; document.getElementById('startTime').value=''; document.getElementById('endTime').value='';
+  render();
+}
+function removeActivity(i){
+  const data=load(), k=key(selectedDate); data[k].splice(i,1); if(!data[k].length) delete data[k]; save(data); render();
+}
+function timeline(){
+  const all=[...fixedBlocks.map(x=>({...x,fixed:true})),...userActivities().map(x=>({...x,fixed:false}))].sort((a,b)=>a.start-b.start);
+  let html='';
+  let cursor=0;
+  all.forEach((x,i)=>{
+    if(x.start>cursor) html+=row('Free',cursor,x.start,false,'⚪');
+    html+=row(x.name,x.start,x.end,x.fixed,x.icon||'📝',x.fixed?null:i);
+    cursor=x.end;
+  });
+  if(cursor<24) html+=row('Free',cursor,24,false,'⚪');
+  document.getElementById('timeline').innerHTML=html;
+}
+function row(name,start,end,fixed,icon,removeIndex){
+  const dur=end-start;
+  const time=`${fmt(start)} – ${fmt(end)}`;
+  return `<div class="item"><div><div class="name">${icon} ${escapeHtml(name)}</div><div class="time">${time} · ${dur%1?dur.toFixed(1):dur}h</div></div>${fixed?'<span class="badge fixed">LOCKED</span>':removeIndex!==null?`<button onclick="removeActivity(${removeIndex})">Remove</button>`:'<span class="badge freeText">FREE</span>'}</div>`;
+}
+function fmt(h){
+  const H=Math.floor(h), M=Math.round((h-H)*60);
+  return `${String(H).padStart(2,'0')}:${String(M).padStart(2,'0')}`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+
+function drawClock(){
+  const c=document.getElementById('clock'),ctx=c.getContext('2d'),S=c.width,cx=S/2,cy=S/2,r=S*.39;
+  ctx.clearRect(0,0,S,S);
+  ctx.fillStyle='#0d1117';ctx.fillRect(0,0,S,S);
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#161b22';ctx.fill();
+  ctx.lineWidth=S*.13;
+  const arc=(start,end,color)=>{ctx.beginPath();ctx.arc(cx,cy,r,start,end);ctx.strokeStyle=color;ctx.lineCap='butt';ctx.stroke()};
+  const a=h=>-Math.PI/2+h/24*Math.PI*2;
+  arc(a(1),a(9),'#8957e5');arc(a(10),a(12),'#58a6ff');arc(a(18),a(20),'#3fb950');
+  userActivities().forEach(x=>arc(a(x.start),a(x.end),'#f0f3f6'));
+  ctx.fillStyle='#e6edf3';ctx.font=`bold ${S*.055}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let h=0;h<24;h+=2){const rr=r+S*.12,ang=a(h);ctx.fillText(h===0?'12':h>12?h-12:h,cx+Math.cos(ang)*rr,cy+Math.sin(ang)*rr)}
+  ctx.font=`${S*.045}px system-ui`;ctx.fillStyle='#8b949e';ctx.fillText('24 HOURS',cx,cy+S*.02);
+}
+function render(){
+  document.getElementById('dateTitle').textContent=dateLabel(selectedDate);
+  timeline();drawClock();summary();renderCalendar();
+}
+function summary(){
+  const added=userActivities().reduce((s,x)=>s+x.end-x.start,0);
+  const fixed=12;
+  const free=Math.max(0,24-fixed-added);
+  document.getElementById('fixedHours').textContent=fixed+'h';
+  document.getElementById('addedHours').textContent=(added%1?added.toFixed(1):added)+'h';
+  document.getElementById('freeHours').textContent=(free%1?free.toFixed(1):free)+'h';
+}
+function moveDay(n){selectedDate.setDate(selectedDate.getDate()+n);calendarMonth=new Date(selectedDate);calendarMonth.setDate(1);render()}
+function moveMonth(n){calendarMonth.setMonth(calendarMonth.getMonth()+n);renderCalendar()}
+function renderCalendar(){
+  const y=calendarMonth.getFullYear(),m=calendarMonth.getMonth();
+  document.getElementById('monthTitle').textContent=calendarMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),data=load();
+  let h=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<div class="calHead">${x}</div>`).join('');
+  for(let i=0;i<first;i++)h+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const dt=new Date(y,m,d);const k=key(dt),has=(data[k]||[]).length;
+    h+=`<button class="day ${key(dt)===key(new Date())?'today':''} ${has?'has':''}" onclick="selectDate(${y},${m},${d})"><b>${d}</b>${has?`<div class="small">${data[k].length} added</div>`:''}</button>`;
+  }
+  document.getElementById('calendar').innerHTML=h;
+}
+function selectDate(y,m,d){selectedDate=new Date(y,m,d);render();scrollToTop()}
+document.getElementById('todayBtn').onclick=()=>{selectedDate=new Date();selectedDate.setHours(0,0,0,0);calendarMonth=new Date(selectedDate);calendarMonth.setDate(1);render();scrollToTop()}
+function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'})}
+render();
+</script>
+</body>
+</html>
